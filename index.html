@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senin İçin Bir Sürpriz</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: manipulation;
+            overflow-x: hidden;
+        }
+
+        .container {
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .puzzle-container {
+            width: 100%;
+            aspect-ratio: 1/1;
+            position: relative;
+            margin: 0 auto;
+            border: 2px solid #ddd;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            width: 25%;
+            height: 25%;
+            background-size: 400% 400%;
+            border: 1px solid #fff;
+            box-sizing: border-box;
+            transition: transform 0.2s, box-shadow 0.2s;
+            touch-action: none;
+            user-select: none;
+            z-index: 1;
+            cursor: grab;
+        }
+
+        .puzzle-piece:active {
+            cursor: grabbing;
+            z-index: 2;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .message {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s;
+        }
+
+        .message p {
+            font-size: 18px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .message button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .message button:hover {
+            background-color: #45a049;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0;
+            z-index: 10;
+            animation: confetti 3s ease-in-out;
+        }
+
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(500px) rotate(360deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bizim Yapbozumuz</h1>
+        <div class="puzzle-container" id="puzzle-container"></div>
+        <div class="original-image" id="original-image">
+            <img src="https://raw.githubusercontent.com/lockywd/asknew/refs/heads/main/puzzle_image.jpg" alt="Original Image" style="display:none;">
+        </div>
+        <div class="message" id="message">
+            <p>Bu fotoğrafın her parçası gibi, kalbimin her köşesi sana ait aşkım... Sen benim en güzel tamamlanmış yapbozumsun 💙</p>
+            <button onclick="location.reload()">Tekrar Oyna</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const puzzleContainer = document.getElementById('puzzle-container');
+            const originalImage = document.querySelector('.original-image img');
+            const message = document.getElementById('message');
+            const containerWidth = puzzleContainer.offsetWidth;
+            const pieceSize = containerWidth / 4;
+            
+            let pieces = [];
+            let isDragging = false;
+            let draggedPiece = null;
+            let draggedIndex = null;
+            let offsetX, offsetY;
+            
+            // Resim yüklendikten sonra puzzle'ı oluştur
+            originalImage.onload = function() {
+                createPuzzle();
+            };
+            
+            // Eğer resim önceden yüklenmişse
+            if (originalImage.complete) {
+                createPuzzle();
+            }
+            
+            function createPuzzle() {
+                puzzleContainer.innerHTML = '';
+                pieces = [];
+                
+                // Puzzle parçalarını oluştur
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        const piece = document.createElement('div');
+                        piece.className = 'puzzle-piece';
+                        
+                        // Rastgele pozisyon
+                        const randomX = Math.random() * (containerWidth - pieceSize);
+                        const randomY = Math.random() * (containerWidth - pieceSize);
+                        
+                        piece.style.left = `${randomX}px`;
+                        piece.style.top = `${randomY}px`;
+                        
+                        // Arka plan pozisyonu
+                        const bgPosX = (col / 3) * 100;
+                        const bgPosY = (row / 3) * 100;
+                        
+                        piece.style.backgroundImage = `url(${originalImage.src})`;
+                        piece.style.backgroundPosition = `${bgPosX}% ${bgPosY}%`;
+                        piece.style.backgroundSize = `${containerWidth}px ${containerWidth}px`;
+                        
+                        // Doğru pozisyonu sakla
+                        piece.dataset.correctX = col * pieceSize;
+                        piece.dataset.correctY = row * pieceSize;
+                        
+                        puzzleContainer.appendChild(piece);
+                        pieces.push(piece);
+                        
+                        // Sürükle-bırak eventleri
+                        piece.addEventListener('mousedown', startDrag);
+                        piece.addEventListener('touchstart', startDrag, { passive: false });
+                    }
+                }
+                
+                // Mouse/touch hareket ve bırakma eventleri
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('touchmove', drag, { passive: false });
+                document.addEventListener('mouseup', endDrag);
+                document.addEventListener('touchend', endDrag);
+            }
+            
+            function startDrag(e) {
+                e.preventDefault();
+                isDragging = true;
+                
+                if (e.type === 'mousedown') {
+                    draggedPiece = e.target;
+                    offsetX = e.clientX - draggedPiece.getBoundingClientRect().left;
+                    offsetY = e.clientY - draggedPiece.getBoundingClientRect().top;
+                } else if (e.type === 'touchstart') {
+                    draggedPiece = e.target;
+                    const touch = e.touches[0];
+                    offsetX = touch.clientX - draggedPiece.getBoundingClientRect().left;
+                    offsetY = touch.clientY - draggedPiece.getBoundingClientRect().top;
+                }
+                
+                draggedPiece.style.zIndex = '10';
+                draggedPiece.style.cursor = 'grabbing';
+                draggedIndex = pieces.indexOf(draggedPiece);
+            }
+            
+            function drag(e) {
+                if (!isDragging || !draggedPiece) return;
+                e.preventDefault();
+                
+                let clientX, clientY;
+                if (e.type === 'mousemove') {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                } else if (e.type === 'touchmove') {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+                
+                const containerRect = puzzleContainer.getBoundingClientRect();
+                let newX = clientX - containerRect.left - offsetX;
+                let newY = clientY - containerRect.top - offsetY;
+                
+                // Puzzle alanı içinde kalmasını sağla
+                newX = Math.max(0, Math.min(newX, containerWidth - pieceSize));
+                newY = Math.max(0, Math.min(newY, containerWidth - pieceSize));
+                
+                draggedPiece.style.left = `${newX}px`;
+                draggedPiece.style.top = `${newY}px`;
+            }
+            
+            function endDrag() {
+                if (!isDragging || !draggedPiece) return;
+                
+                isDragging = false;
+                draggedPiece.style.zIndex = '1';
+                draggedPiece.style.cursor = 'grab';
+                
+                // Parçanın doğru pozisyona yakın olup olmadığını kontrol et
+                const currentX = parseFloat(draggedPiece.style.left);
+                const currentY = parseFloat(draggedPiece.style.top);
+                const correctX = parseFloat(draggedPiece.dataset.correctX);
+                const correctY = parseFloat(draggedPiece.dataset.correctY);
+                
+                const distance = Math.sqrt(Math.pow(currentX - correctX, 2) + Math.pow(currentY - correctY, 2));
+                
+                if (distance < 20) { // 20 piksel yakınsa otomatik yerleştir
+                    draggedPiece.style.left = `${correctX}px`;
+                    draggedPiece.style.top = `${correctY}px`;
+                    draggedPiece.classList.add('correct');
+                    
+                    // Animasyon ekle
+                    draggedPiece.style.transition = 'all 0.3s ease';
+                    setTimeout(() => {
+                        draggedPiece.style.transition = '';
+                    }, 300);
+                }
+                
+                // Tüm parçalar doğru yerde mi kontrol et
+                checkCompletion();
+                
+                draggedPiece = null;
+                draggedIndex = null;
+            }
+            
+            function checkCompletion() {
+                const allCorrect = pieces.every(piece => {
+                    const currentX = parseFloat(piece.style.left);
+                    const currentY = parseFloat(piece.style.top);
+                    const correctX = parseFloat(piece.dataset.correctX);
+                    const correctY = parseFloat(piece.dataset.correctY);
+                    
+                    return Math.abs(currentX - correctX) < 5 && Math.abs(currentY - correctY) < 5;
+                });
+                
+                if (allCorrect) {
+                    setTimeout(() => {
+                        message.style.display = 'block';
+                        createConfetti();
+                    }, 500);
+                }
+            }
+            
+            function createConfetti() {
+                const colors = ['#f00', '#0f0', '#00f', '#ff0', '#f0f', '#0ff'];
+                
+                for (let i = 0; i < 100; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = `${Math.random() * 100}%`;
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDuration = `${Math.random() * 2 + 1}s`;
+                    confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                    document.body.appendChild(confetti);
+                    
+                    // Animasyon bitince confetti'yi kaldır
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 3000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
